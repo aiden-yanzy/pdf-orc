@@ -1,0 +1,31 @@
+# Byte-compiled and extension modules
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Testing outputs
+.pytest_cache/
+.mypy_cache/
+coverage.xml
+htmlcov/
+
+# Logs
+*.log
+
+# IDE and OS clutter
+.idea/
+.vscode/
+.DS_Store
+
+# Temporary files
+*.swp

@@ -1,3 +1,16 @@
+"""Novel analysis workflow components."""
+
+from .analysis_agent import AnalysisAgent, AnalysisPromptBuilder, PromptMetadata
+from .analysis_schema import (
+    AnalysisResult,
+    CharacterProfile,
+    NarrativeRelationship,
+    PlotBeat,
+    StylisticNote,
+)
+from .orchestrator import AnalysisOrchestrator, AnalysisOrchestratorConfig
+from .state import AnalysisArtifacts, NovelOrchestratorState
+  
 """Novel tooling for xnovel."""
 
 from .review_agent import (
@@ -9,8 +22,62 @@ from .review_agent import (
     CostTracker,
     REVIEW_CHECKLIST,
 )
+  
+"""Novel-specific agents and helpers."""
+
+from .outline_agent import (
+    OutlineAgent,
+    OutlineConfig,
+    OutlineValidationError,
+    generate_character_aliases,
+    remap_location,
+    remap_setting,
+    remap_timeframe,
+)
+  
+"""Novel generation orchestration workflow."""
+
+from __future__ import annotations
+
+from .orchestrator import (
+    NovelOrchestrator,
+    NovelWorkflowConfig,
+    NovelWorkflowState,
+    run_analysis,
+    run_outline,
+    run_writing,
+    run_review,
+    run_all,
+)
 
 __all__ = [
+    "AnalysisAgent",
+    "AnalysisPromptBuilder",
+    "PromptMetadata",
+    "AnalysisResult",
+    "CharacterProfile",
+    "NarrativeRelationship",
+    "PlotBeat",
+    "StylisticNote",
+    "AnalysisOrchestrator",
+    "AnalysisOrchestratorConfig",
+    "AnalysisArtifacts",
+    "NovelOrchestratorState",
+   "OutlineAgent",
+    "OutlineConfig",
+    "OutlineValidationError",
+    "generate_character_aliases",
+    "remap_location",
+    "remap_setting",
+    "remap_timeframe",
+    "NovelOrchestrator",
+    "NovelWorkflowConfig",
+    "NovelWorkflowState",
+    "run_analysis",
+    "run_outline",
+    "run_writing",
+    "run_review",
+    "run_all",
     "CritiqueResult",
     "RewriteResult",
     "ReviewAgent",

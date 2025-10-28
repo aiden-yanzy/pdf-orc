@@ -12,16 +12,15 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
-from typing import Iterable, Optional, TypedDict
+from typing import Iterable, TypedDict
 
-import fitz  # PyMuPDF
 import numpy as np
-import pytesseract
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from PIL import Image
 from langgraph.graph import StateGraph, START, END
+
+from pdf_ocr.extractors import PDFExtractionOptions, extract_pdf_to_text
 
 try:
     from langchain_huggingface import HuggingFaceEmbeddings
@@ -105,6 +104,17 @@ class PDFMarkdownConverter:
         if not self.config.input_dir.exists():
             raise FileNotFoundError(f"输入目录不存在: {self.config.input_dir}")
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _build_extraction_options(self) -> PDFExtractionOptions:
+        return PDFExtractionOptions(
+            ocr_langs=self.config.ocr_langs,
+            ocr_min_text_threshold=self.config.ocr_min_text_threshold,
+            page_dpi=self.config.page_dpi,
+            extract_images=self.config.extract_images,
+            enable_formula_detection=self.config.enable_formula_detection,
+            output_dir=self.config.output_dir,
+            tesseract_available=self._tesseract_available,
+        )
 
     def _create_llm(self) -> ChatOpenAI:
         api_key = os.getenv("OPENAI_API_KEY", "")
@@ -357,108 +367,16 @@ class PDFMarkdownConverter:
         return output_path
 
     def _extract_pdf_content(self, pdf_path: Path, assets_dir: Path) -> tuple[list[str], str, list[dict]]:
-        doc = fitz.open(pdf_path)
-        page_texts: list[str] = []
-        media_assets: list[dict] = []
-
-        relative_assets = None
-        if self.config.extract_images:
-            try:
-                relative_assets = assets_dir.relative_to(self.config.output_dir)
-            except ValueError:
-                relative_assets = assets_dir
-
-        for page_index, page in enumerate(doc, start=1):
-            page_dict = page.get_text("dict")
-            page_parts: list[str] = []
-            image_counter = 0
-            formula_counter = 0
-
-            for block in page_dict.get("blocks", []):
-                block_type = block.get("type")
-                if block_type == 0:
-                    block_lines: list[str] = []
-                    for line in block.get("lines", []):
-                        line_spans: list[str] = []
-                        for span in line.get("spans", []):
-                            span_text = span.get("text", "")
-                            if not span_text.strip():
-                                continue
-                            if self.config.enable_formula_detection and self._looks_like_formula(span_text):
-                                formula_counter += 1
-                                placeholder = self._format_formula_placeholder(
-                                    pdf_path.stem, page_index, formula_counter, span_text.strip()
-                                )
-                                line_spans.append(placeholder)
-                                media_assets.append(
-                                    {
-                                        "type": "formula",
-                                        "label": f"{page_index}-{formula_counter}",
-                                        "page": page_index,
-                                        "placeholder": placeholder,
-                                        "latex": span_text.strip(),
-                                    }
-                                )
-                            else:
-                                line_spans.append(span_text)
-                        if line_spans:
-                            block_lines.append("".join(line_spans).strip())
-                    if block_lines:
-                        page_parts.append("\n".join(block_lines))
-                elif block_type == 1 and self.config.extract_images:
-                    xref = block.get("xref")
-                    if not xref:
-                        continue
-                    image_counter += 1
-                    saved = self._save_image_asset(
-                        doc=doc,
-                        xref=xref,
-                        assets_dir=assets_dir,
-                        relative_base=relative_assets,
-                        stem=pdf_path.stem,
-                        page_index=page_index,
-                        image_index=image_counter,
-                    )
-                    if saved:
-                        placeholder, asset_meta = saved
-                        page_parts.append(placeholder)
-                        media_assets.append(asset_meta)
-
-            text_from_blocks = "\n\n".join(part for part in page_parts if part).strip()
-            if len(text_from_blocks) >= self.config.ocr_min_text_threshold:
-                page_texts.append(text_from_blocks)
-                print(f"📥 第 {page_index} 页直接提取文本，长度 {len(text_from_blocks)} 字符。")
-                continue
-
-            base_text = text_from_blocks
-            if not self._tesseract_available:
-                page_texts.append(base_text)
-                print(f"⚠️ 第 {page_index} 页文本过短且未配置 OCR，保留原始内容。")
-                continue
-
-            ocr_text = self._ocr_page(page).strip()
-            combined = (base_text + "\n" + ocr_text).strip() if base_text else ocr_text
-            page_texts.append(combined)
-            print(f"🖼️ 第 {page_index} 页使用 OCR 补充内容，合并后长度 {len(combined)} 字符。")
-
-        combined_text = "\n\n".join(chunk for chunk in page_texts if chunk)
-        return page_texts, combined_text, media_assets
-
-    def _ocr_page(self, page: fitz.Page) -> str:
-        zoom = self.config.page_dpi / 72
-        mat = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=mat)
-        mode = "RGB" if pix.alpha == 0 else "RGBA"
-        image = Image.frombytes(mode, (pix.width, pix.height), pix.samples)
-        if pix.alpha:
-            image = image.convert("RGB")
-
-        try:
-            return pytesseract.image_to_string(image, lang=self.config.ocr_langs)
-        except pytesseract.TesseractNotFoundError as err:
-            raise RuntimeError("pytesseract 未找到 Tesseract 可执行文件。") from err
-        except pytesseract.TesseractError as err:
-            raise RuntimeError(f"Tesseract OCR 执行失败: {err}") from err
+        options = self._build_extraction_options()
+        logger = print
+        assets_target: Path | None = assets_dir if self.config.extract_images else None
+        result = extract_pdf_to_text(
+            pdf_path,
+            assets_dir=assets_target,
+            options=options,
+            logger=logger,
+        )
+        return result.page_texts, result.combined_text, result.media_assets
 
     def _split_into_chunks(self, text: str) -> list[str]:
         max_chars = max(1000, self.config.max_chunk_chars)
@@ -509,67 +427,6 @@ class PDFMarkdownConverter:
 
         return selected
 
-    def _save_image_asset(
-        self,
-        doc: fitz.Document,
-        xref: int,
-        assets_dir: Path,
-        relative_base: Path | None,
-        stem: str,
-        page_index: int,
-        image_index: int,
-    ) -> Optional[tuple[str, dict]]:
-        try:
-            image_info = doc.extract_image(xref)
-        except Exception as exc:  # pragma: no cover
-            print(f"⚠️ 提取图像失败 (page {page_index}, xref {xref}): {exc}")
-            return None
-
-        image_bytes = image_info.get("image")
-        image_ext = image_info.get("ext", "png")
-        if not image_bytes:
-            return None
-
-        filename = f"{stem}_p{page_index:03d}_img{image_index:02d}.{image_ext}"
-        filepath = assets_dir / filename
-        try:
-            filepath.write_bytes(image_bytes)
-        except Exception as exc:  # pragma: no cover
-            print(f"⚠️ 保存图像失败: {filepath} ({exc})")
-            return None
-
-        relative_path = filepath if relative_base is None else (relative_base / filename)
-        placeholder = f"![图像 {page_index}-{image_index}]({relative_path.as_posix()})"
-        asset_meta = {
-            "type": "image",
-            "label": f"{page_index}-{image_index}",
-            "page": page_index,
-            "placeholder": placeholder,
-            "relative_path": relative_path.as_posix(),
-        }
-        return placeholder, asset_meta
-
-    def _format_formula_placeholder(self, stem: str, page_index: int, formula_index: int, latex: str) -> str:
-        sanitized = latex.strip()
-        return f"[公式 {page_index}-{formula_index}]\n$$\n{sanitized}\n$$"
-
-    def _looks_like_formula(self, text: str) -> bool:
-        stripped = text.strip()
-        if len(stripped) < 4:
-            return False
-
-        math_tokens = ["\\frac", "\\sum", "\\int", "\\sqrt", "\\alpha", "\\beta", "\\gamma", "\\pi"]
-        if any(token in stripped for token in math_tokens):
-            return True
-
-        math_chars = set("=+-*/<>∑∫√≈≤≥^_{}[]|\\")
-        total_chars = len(stripped)
-        math_count = sum(1 for ch in stripped if ch in math_chars)
-        digit_count = sum(ch.isdigit() for ch in stripped)
-        if math_count + digit_count >= total_chars * 0.4:
-            return True
-
-        return False
 
 
 def build_parser() -> argparse.ArgumentParser:

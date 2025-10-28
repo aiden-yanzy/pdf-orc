@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 pdf-ocr = "pdf_ocr.cli:main"
+xnovel = "xnovel.cli:main"
 
 [build-system]
 requires = ["hatchling"]

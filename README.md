@@ -37,3 +37,8 @@ python -m pdf_ocr.cli --no-extract_images --disable_formula_detection
 需要先安装 Tesseract OCR（含中文语言包）以及可访问的 LLM/嵌入服务。
 
 环境变量 `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `EMBEDDING_BACKEND` 等与原项目保持一致。详细说明见 `pdf_ocr/processor.py` 中的注释。
+
+## 更多文档
+
+- Novel pipeline usage guide: [docs/USAGE-novel.md](docs/USAGE-novel.md) (English)
+- 更新记录参见 [docs/CHANGELOG.md](docs/CHANGELOG.md)。

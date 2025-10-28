@@ -23,6 +23,14 @@ from .novel.outline_agent import (
     remap_timeframe,
 )
 
+"""xNovel orchestration tools."""
+
+from __future__ import annotations
+
+__all__ = ["__version__"]
+
+__version__ = "0.1.0"
+
 __all__ = [
     "BudgetConfig",
     "LLMConfig",

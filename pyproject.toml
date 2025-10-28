@@ -20,6 +20,12 @@ dependencies = [
 [project.scripts]
 pdf-ocr = "pdf_ocr.cli:main"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdf_ocr", "src/xnovel"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/pdf_ocr", "src/xnovel", "pyproject.toml", "README.md"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

@@ -10,6 +10,18 @@ from .analysis_schema import (
 )
 from .orchestrator import AnalysisOrchestrator, AnalysisOrchestratorConfig
 from .state import AnalysisArtifacts, NovelOrchestratorState
+  
+"""Novel-specific agents and helpers."""
+
+from .outline_agent import (
+    OutlineAgent,
+    OutlineConfig,
+    OutlineValidationError,
+    generate_character_aliases,
+    remap_location,
+    remap_setting,
+    remap_timeframe,
+)
 
 __all__ = [
     "AnalysisAgent",
@@ -24,4 +36,11 @@ __all__ = [
     "AnalysisOrchestratorConfig",
     "AnalysisArtifacts",
     "NovelOrchestratorState",
+   "OutlineAgent",
+    "OutlineConfig",
+    "OutlineValidationError",
+    "generate_character_aliases",
+    "remap_location",
+    "remap_setting",
+    "remap_timeframe",
 ]

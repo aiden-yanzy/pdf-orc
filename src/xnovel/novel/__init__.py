@@ -11,6 +11,18 @@ from .analysis_schema import (
 from .orchestrator import AnalysisOrchestrator, AnalysisOrchestratorConfig
 from .state import AnalysisArtifacts, NovelOrchestratorState
   
+"""Novel tooling for xnovel."""
+
+from .review_agent import (
+    CritiqueResult,
+    RewriteResult,
+    ReviewAgent,
+    ReviewProvider,
+    ReviewSession,
+    CostTracker,
+    REVIEW_CHECKLIST,
+)
+  
 """Novel-specific agents and helpers."""
 
 from .outline_agent import (
@@ -66,4 +78,11 @@ __all__ = [
     "run_writing",
     "run_review",
     "run_all",
+    "CritiqueResult",
+    "RewriteResult",
+    "ReviewAgent",
+    "ReviewProvider",
+    "ReviewSession",
+    "CostTracker",
+    "REVIEW_CHECKLIST",
 ]

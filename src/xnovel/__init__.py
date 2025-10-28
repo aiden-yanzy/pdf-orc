@@ -1,3 +1,5 @@
+"""xnovel package."""
+
 """Scaffolding package for the novel agent pipeline."""
 
 from .config import BudgetConfig, LLMConfig, XNovelConfig
